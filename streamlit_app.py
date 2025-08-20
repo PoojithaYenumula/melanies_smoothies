@@ -48,8 +48,27 @@ if ingredients_list:
         fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + search_on)
 
         if fruityvice_response.ok:
-            fv_df = pd.DataFrame([fruityvice_response.json()])
-            st.dataframe(fv_df, use_container_width=True)
+            data = fruityvice_response.json()
+
+            # Flatten nutrition info into rows
+            nutrition = data["nutritions"]
+            df = pd.DataFrame({
+                "nutrition": list(nutrition.keys()),
+                "value": list(nutrition.values())
+            })
+
+            # Add other metadata columns (family, genus, id, name, order)
+            df["family"] = data.get("family", "")
+            df["genus"] = data.get("genus", "")
+            df["id"] = data.get("id", "")
+            df["name"] = data.get("name", "")
+            df["order"] = data.get("order", "")
+
+            # Reorder columns
+            df = df[["nutrition", "family", "genus", "id", "name", "value", "order"]]
+
+            # Show dataframe
+            st.dataframe(df, use_container_width=True)
         else:
             st.warning(f"No data found for {each_fruit} (searched as '{search_on}')")
 
