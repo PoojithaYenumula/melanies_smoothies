@@ -1,3 +1,5 @@
+# streamlit_app.py
+
 # Import python packages
 import streamlit as st
 from snowflake.snowpark.functions import col
@@ -22,12 +24,8 @@ sp_df = (
     .select(col("FRUIT_NAME"), col("SEARCH_ON"))
 )
 
-# 2) Convert Snowpark DF -> Pandas DF to use .loc / .iloc
+# 2) Convert Snowpark DF -> Pandas DF
 pd_df = sp_df.to_pandas()
-
-# (optional debug like the tutorial)
-# st.dataframe(pd_df, use_container_width=True)
-# st.stop()
 
 # 3) Multiselect should show the friendly FRUIT_NAMEs
 ingredients_list = st.multiselect(
@@ -42,7 +40,7 @@ if ingredients_list:
     # Build a string of chosen fruits (display names) for the order table
     ingredients_string = " ".join(ingredients_list)
 
-    API_BASE = "https://my.smoothiefroot.com/api/fruit"
+    API_BASE = "https://fruityvice.com/api/fruit"
 
     # 4) For each chosen fruit, map to SEARCH_ON and call the API
     for fruit_chosen in ingredients_list:
@@ -51,22 +49,17 @@ if ingredients_list:
             pd_df["FRUIT_NAME"] == fruit_chosen, "SEARCH_ON"
         ].iloc[0]
 
-        # (optional) show mapping like in screenshots
-        # st.write("The search value for", fruit_chosen, "is", search_on, ".")
-
         st.subheader(f"{fruit_chosen} Nutrition Information")
 
-        try:
-            r = requests.get(f"{API_BASE}/{search_on}", timeout=10)
-            if r.ok:
-                # Show whatever the API returns (simple + robust)
-                st.json(r.json())
-            else:
-                st.warning(f"No data found for {fruit_chosen} (searched as '{search_on}')")
-        except Exception as e:
-            st.error(f"Error fetching data for {fruit_chosen}: {e}")
+        # Call API
+        fruityvice_response = requests.get(f"{API_BASE}/{search_on}")
+        if fruityvice_response.ok:
+            fv_df = pd.DataFrame([fruityvice_response.json()])
+            st.dataframe(fv_df, use_container_width=True)
+        else:
+            st.warning(f"No data found for {fruit_chosen} (searched as '{search_on}')")
 
-    # 6) Insert the order into Snowflake
+    # 5) Insert the order into Snowflake
     my_insert_stmt = f"""
         insert into smoothies.public.orders(ingredients, name_on_order)
         values ('{ingredients_string}', '{name_on_order}')
